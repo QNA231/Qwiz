@@ -2,86 +2,80 @@ import { useEffect, useState } from "react";
 
 const Quiz = () => {
     const [questionBuffer, setQuestionBuffer] = useState([]);
-    const [currentQuestion, setCurrentQuestion] = useState(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [selectedOption, setSelectedOption] = useState(null);
+    const [userAnswer, setUserAnswer] = useState([]);
 
-    const [selectedOption, setSelectedOption] = useState();
-    const [userAnswer, setUserAnswer] = useState(Array.from({ length: questionBuffer.length }));
+    const API_URL = "https://opentdb.com/api.php?amount=50";
 
-    // Hàm chuẩn bị dữ liệu cho việc hiển thị
+    // Định dạng câu hỏi
     const formatQuestion = (questionObject) => {
         const allAnswers = [
             questionObject.correct_answer,
             ...questionObject.incorrect_answers
-        ];
+        ].sort(() => Math.random() - 0.5); // xáo trộn đáp án
         return {
             ...questionObject,
             all_answers: allAnswers,
         };
     };
 
-    // LÔ GIC 1: CHỈ FETCH API MỘT LẦN KHI COMPONENT MOUNT
+    // Fetch API một lần
     const fetchQues = async () => {
-        const API_URL = "https://opentdb.com/api.php?amount=50";
         try {
             const response = await fetch(API_URL);
-            if (!response.ok) {
-                throw new Error(`Lỗi HTTP: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
             const data = await response.json();
-            if (data.response_code !== 0) {
-                throw new Error(`Lỗi API Trivia DB: Code ${data.response_code}.`);
-            }
-            // LƯU KẾT QUẢ API, GÂY RA RENDER VÀ CHẠY useEffect 2
-            setQuestionBuffer(data.results);
+            if (data.response_code !== 0) throw new Error(`API Error Code: ${data.response_code}`);
+
+            const formattedQuestions = data.results.map(formatQuestion);
+            setQuestionBuffer(formattedQuestions);
+            setUserAnswer(Array(formattedQuestions.length).fill(null)); // tạo mảng câu trả lời
+            setCurrentQuestion(formattedQuestions[0]);
         } catch (error) {
-            console.error("Lỗi xảy ra khi truy xuất câu hỏi: ", error.message);
-        }
-    };
-
-    // Hàm chuyển sang câu hỏi tiếp theo
-    const goNext = () => {
-        setCurrentQuestion(formatQuestion(questionBuffer[currentQuestionIndex + 1]));
-        
-    };
-
-    const goBack = () => {
-        if (currentQuestionIndex >= 0) {
-            setCurrentQuestion(formatQuestion(questionBuffer[currentQuestionIndex - 1]));
+            console.error("Lỗi truy xuất câu hỏi:", error.message);
         }
     };
 
     useEffect(() => {
         fetchQues();
-    }, []); // 🎯 CHỈ CHẠY MỘT LẦN
+    }, []);
 
-    // LÔ GIC 2: XỬ LÝ DỮ LIỆU SAU KHI TẢI
-    useEffect(() => {
-        // Kiểm tra nếu dữ liệu đã tải và chưa có câu hỏi hiện tại
-        if (questionBuffer.length > 0 && currentQuestionIndex === 0 && !currentQuestion) {
-            const formatted = formatQuestion(questionBuffer[currentQuestionIndex]);
-            setCurrentQuestion(formatted);
+    // Chuyển sang câu tiếp theo
+    const goNext = () => {
+        if (currentQuestionIndex < questionBuffer.length - 1) {
+            const nextIndex = currentQuestionIndex + 1;
+            setCurrentQuestionIndex(nextIndex);
+            setCurrentQuestion(questionBuffer[nextIndex]);
+            setSelectedOption(userAnswer[nextIndex]);
         }
-    }, [questionBuffer, currentQuestionIndex, currentQuestion]);
+    };
 
-    // ----------------------------------------------------
-    // KIỂM TRA ĐIỀU KIỆN RENDER
-    if (!currentQuestion) {
-        return <div>Đang tải câu hỏi hoặc xảy ra lỗi...</div>;
-    }
+    // Quay lại câu trước
+    const goBack = () => {
+        if (currentQuestionIndex > 0) {
+            const prevIndex = currentQuestionIndex - 1;
+            setCurrentQuestionIndex(prevIndex);
+            setCurrentQuestion(questionBuffer[prevIndex]);
+            setSelectedOption(userAnswer[prevIndex]);
+        }
+    };
 
-    // ... (Hàm handleAnswerClick cần được định nghĩa để sử dụng moveToNextQuestion)
-    const handleAnswerClick = (selectedAnswer, index) => {
+    const handleAnswerClick = (selectedAnswer) => {
         setSelectedOption(selectedAnswer);
-
         const newUserAnswer = [...userAnswer];
-        newUserAnswer[currentQuestion] = index;
-        setUserAnswer[newUserAnswer];
+        newUserAnswer[currentQuestionIndex] = selectedAnswer;
+        setUserAnswer(newUserAnswer);
+    };
+
+    if (!currentQuestion) {
+        return <div>Đang tải câu hỏi...</div>;
     }
 
     return (
         <div className="quiz-container">
-            {/* 🎯 SỬ DỤNG currentQuestion đã được xử lý */}
             <h2>Câu {currentQuestionIndex + 1}</h2>
             <p className="question">{currentQuestion.question}</p>
 
@@ -89,18 +83,23 @@ const Quiz = () => {
                 <button
                     key={index}
                     className={`option ${selectedOption === answer ? 'selected' : ''}`}
+                    onClick={() => handleAnswerClick(answer)}
                     disabled={!!selectedOption && selectedOption !== answer}
-                    onClick={() => handleAnswerClick(answer, index)}>
+                >
                     <span>{String.fromCharCode(65 + index)}. </span>
                     {answer}
                 </button>
             ))}
 
-            {selectedOption != null ? (selectedOption === currentQuestion.correct_answer ? <p className="correct-answer">Đáp án đúng</p> : <p className="incorrect-answer">Đáp án sai</p>) : ""}
+            {selectedOption && (
+                <p className={selectedOption === currentQuestion.correct_answer ? "correct-answer" : "incorrect-answer"}>
+                    {selectedOption === currentQuestion.correct_answer ? "Đáp án đúng" : "Đáp án sai"}
+                </p>
+            )}
 
             <div className="nav-buttons">
-                <button onClick={goBack}>Quay lại</button>
-                <button onClick={goNext}>Tiếp theo</button>
+                <button onClick={goBack} disabled={currentQuestionIndex === 0}>Quay lại</button>
+                <button onClick={goNext} disabled={currentQuestionIndex === questionBuffer.length - 1}>Tiếp theo</button>
             </div>
         </div>
     );
