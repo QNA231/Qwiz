@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Result from "./Result";
 
 const Quiz = () => {
     const [questionBuffer, setQuestionBuffer] = useState([]);
@@ -6,8 +7,10 @@ const Quiz = () => {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [selectedOption, setSelectedOption] = useState(null);
     const [userAnswer, setUserAnswer] = useState([]);
+    const [isQuizFinished, setIsQuizFinished] = useState(false);
+    const [score, setScore] = useState(0);
 
-    const API_URL = "https://opentdb.com/api.php?amount=50";
+    const API_URL = "https://opentdb.com/api.php?amount=5";
 
     // Định dạng câu hỏi
     const formatQuestion = (questionObject) => {
@@ -43,6 +46,12 @@ const Quiz = () => {
         fetchQues();
     }, []);
 
+    useEffect(() => {
+        if (currentQuestion && selectedOption === currentQuestion.correct_answer) {
+            setScore(score + 1);
+        }
+    }, [currentQuestion, selectedOption]);
+
     // Chuyển sang câu tiếp theo
     const goNext = () => {
         if (currentQuestionIndex < questionBuffer.length - 1) {
@@ -50,6 +59,8 @@ const Quiz = () => {
             setCurrentQuestionIndex(nextIndex);
             setCurrentQuestion(questionBuffer[nextIndex]);
             setSelectedOption(userAnswer[nextIndex]);
+        } else {
+            setIsQuizFinished(true);
         }
     };
 
@@ -70,9 +81,27 @@ const Quiz = () => {
         setUserAnswer(newUserAnswer);
     };
 
+    const resetQuiz = () => {
+        fetchQues();
+        setCurrentQuestionIndex(0);
+        setCurrentQuestion(null);
+        setSelectedOption(null);
+        setUserAnswer([]);
+        setIsQuizFinished(false);
+        setScore(0);
+    };
+
+    const viewBack = () => {
+        setIsQuizFinished(false);
+    };
+
     if (!currentQuestion) {
         return <div>Đang tải câu hỏi...</div>;
-    }
+    };
+
+    if (isQuizFinished) {
+        return <Result score={score} totalQuestions={questionBuffer.length} resetQuiz={resetQuiz} viewBack={viewBack} />;
+    };
 
     return (
         <div className="quiz-container">
@@ -99,7 +128,9 @@ const Quiz = () => {
 
             <div className="nav-buttons">
                 <button onClick={goBack} disabled={currentQuestionIndex === 0}>Quay lại</button>
-                <button onClick={goNext} disabled={currentQuestionIndex === questionBuffer.length - 1}>Tiếp theo</button>
+                <button onClick={goNext} disabled={selectedOption === null}>
+                    {currentQuestionIndex === questionBuffer.length - 1 ? "Kết thúc" : "Tiếp theo"}
+                </button>
             </div>
         </div>
     );

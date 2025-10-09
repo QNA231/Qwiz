@@ -122,3 +122,20 @@ p.result {
   justify-content: center;
   gap: 20px;
 }
+
+.resultContainer {
+  text-align: center;
+  margin: 24px 0;
+}
+
+.result-success {
+  color: #47d232;
+}
+
+.result-error {
+  color: red;
+}
+
+.result-ratio {
+  color: #008eff;
+}
