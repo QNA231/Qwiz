@@ -46,20 +46,24 @@ const Quiz = () => {
         fetchQues();
     }, []);
 
-    useEffect(() => {
-        if (currentQuestion && selectedOption === currentQuestion.correct_answer) {
-            setScore(score + 1);
-        }
-    }, [currentQuestion, selectedOption]);
-
     // Chuyển sang câu tiếp theo
     const goNext = () => {
+        // Nếu chưa phải câu cuối
         if (currentQuestionIndex < questionBuffer.length - 1) {
             const nextIndex = currentQuestionIndex + 1;
             setCurrentQuestionIndex(nextIndex);
             setCurrentQuestion(questionBuffer[nextIndex]);
-            setSelectedOption(userAnswer[nextIndex]);
+            setSelectedOption(userAnswer[nextIndex] || null); // Lấy câu trả lời đã có
         } else {
+            // Nếu là câu cuối, tính điểm rồi kết thúc
+            const finalScore = questionBuffer.reduce((acc, question, index) => {
+                if (question.correct_answer === userAnswer[index]) {
+                    return acc + 1;
+                }
+                return acc;
+            }, 0);
+
+            setScore(finalScore);
             setIsQuizFinished(true);
         }
     };
